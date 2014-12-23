@@ -16,11 +16,12 @@ module DilicomApi
       attr_writer :password
       attr_accessor :work_around_timezone_issues
 
-      def initialize(gln = nil, password = nil, env: :test)
+      def initialize(gln = nil, password = nil, env: :test, connection_options: nil)
         @env = env
         @gln = gln
         @password = password
         @work_around_timezone_issues = true
+        @connection_options = connection_options
         server = @@servers[env]
         fail "no server for env #{env}" if server.nil?
         connect(server) if gln && password
@@ -58,7 +59,7 @@ module DilicomApi
       end
 
       def connect(server)
-        @connection ||= ::Faraday::Connection.new(server) do |faraday|
+        @connection ||= ::Faraday::Connection.new(server, connection_options) do |faraday|
           faraday_builder(faraday)
           # Adapter should always be last line of Faraday builder
           # otherwise at least HTTP Auth doesn't work)
@@ -70,6 +71,12 @@ module DilicomApi
         faraday.use(Faraday::Request::BasicAuthentication,
                     @gln,
                     @password) if @gln && @password
+      end
+
+      def connection_options
+        @connection_options ||= {
+          ssl: { ca_path: '/usr/lib/ssl/certs' }
+        }
       end
     end
   end
